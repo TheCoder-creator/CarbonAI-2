@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarbonAI</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+<style>
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background-color: #0f111a;
+        color: #ddd;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+    }
+
+    header {
+        background-color: #1f2233;
+        padding: 15px 20px;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        color: #0af;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    #chatContainer {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .message {
+        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        line-height: 1.4;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+        font-family: monospace;
+        position: relative;
+    }
+
+    .userMessage {
+        background-color: #0a84ff;
+        color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 0;
+    }
+
+    .aiMessage {
+        background-color: #2d2d3d;
+        color: #ddd;
+        align-self: flex-start;
+        border-bottom-left-radius: 0;
+    }
+
+    .copyButton {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        font-size: 12px;
+        background-color: #0af;
+        color: black;
+        border: none;
+        border-radius: 4px;
+        padding: 2px 6px;
+        cursor: pointer;
+    }
+
+    footer {
+        display: flex;
+        padding: 10px 20px;
+        background-color: #1f2233;
+        gap: 10px;
+    }
+
+    #prompt {
+        flex: 1;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: none;
+        font-size: 16px;
+        background-color: #2d2d3d;
+        color: #fff;
+    }
+
+    #sendBtn {
+        background-color: #0af;
+        border: none;
+        border-radius: 8px;
+        color: black;
+        font-weight: bold;
+        padding: 0 20px;
+        cursor: pointer;
+    }
+
+    #sendBtn:hover {
+        background-color: #06c;
+    }
+
+    pre {
+        margin: 0;
+    }
+</style>
+</head>
+<body>
+
+<header>CarbonAI 🤖</header>
+
+<div id="chatContainer"></div>
+
+<footer>
+    <textarea id="prompt" rows="1" placeholder="Ask me anything..."></textarea>
+    <button id="sendBtn">Send</button>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-javascript.min.js"></script>
+
+<script>
+const chatContainer = document.getElementById('chatContainer');
+const promptInput = document.getElementById('prompt');
+const sendBtn = document.getElementById('sendBtn');
+
+const OPENAI_API_KEY = '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'; // Put your key here
+
+function addMessage(text, isUser = false, isCode = false) {
+    const msg = document.createElement('div');
+    msg.className = 'message ' + (isUser ? 'userMessage' : 'aiMessage');
+    
+    if (isCode) {
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.className = 'language-javascript';
+        code.textContent = text;
+        pre.appendChild(code);
+        msg.appendChild(pre);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = 'Copy';
+        copyBtn.className = 'copyButton';
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(code.textContent);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+        });
+        msg.appendChild(copyBtn);
+
+        Prism.highlightElement(code);
+    } else {
+        msg.textContent = text;
+    }
+
+    chatContainer.appendChild(msg);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+sendBtn.addEventListener('click', async () => {
+    const prompt = promptInput.value.trim();
+    if (!prompt) return;
+    addMessage(prompt, true);
+    promptInput.value = '';
+
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'message aiMessage';
+    chatContainer.appendChild(aiMsg);
+
+    // Streaming fetch
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            stream: true
+        })
+    });
+
+    if (!response.body) {
+        aiMsg.textContent = 'Streaming not supported!';
+        return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let done = false;
+    let codeBlock = false;
+    let codeBuffer = '';
+
+    while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+            try {
+                const jsonStr = line.replace(/^data: /, '');
+                if (jsonStr === '[DONE]') break;
+                const parsed = JSON.parse(jsonStr);
+                const text = parsed.choices[0].delta?.content;
+                if (text) {
+                    // Detect code block start/end
+                    if (text.includes('```')) {
+                        codeBlock = !codeBlock;
+                        continue; // skip backticks
+                    }
+
+                    if (codeBlock) {
+                        codeBuffer += text;
+                        aiMsg.textContent = codeBuffer;
+                    } else {
+                        aiMsg.textContent += text;
+                    }
+                }
+            } catch(e) {}
+        }
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    if (codeBuffer) {
+        // Replace plain code with Prism highlighted box
+        aiMsg.textContent = '';
+        const pre = document.createElement('pre');
+        const code = document.createElement('code');
+        code.className = 'language-javascript';
+        code.textContent = codeBuffer;
+        pre.appendChild(code);
+        aiMsg.appendChild(pre);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = 'Copy';
+        copyBtn.className = 'copyButton';
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(code.textContent);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+        });
+        aiMsg.appendChild(copyBtn);
+
+        Prism.highlightElement(code);
+    }
+});
+</script>
+
+</body>
+</html>
