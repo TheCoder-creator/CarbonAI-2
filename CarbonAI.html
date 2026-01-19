@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CarbonAI</title>
+<title>CarbonAI (M5)</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 <style>
     body {
@@ -111,12 +111,12 @@
 </head>
 <body>
 
-<header>CarbonAI 🤖</header>
+<header>CarbonAI</header>
 
 <div id="chatContainer"></div>
 
 <footer>
-    <textarea id="prompt" rows="1" placeholder="Ask me anything..."></textarea>
+    <textarea id="prompt" rows="1" placeholder="Ask model-5 anything..."></textarea>
     <button id="sendBtn">Send</button>
 </footer>
 
@@ -128,7 +128,7 @@ const chatContainer = document.getElementById('chatContainer');
 const promptInput = document.getElementById('prompt');
 const sendBtn = document.getElementById('sendBtn');
 
-const OPENAI_API_KEY = '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'; // Put your key here
+const OPENAI_API_KEY = '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'; // Put your key here
 
 function addMessage(text, isUser = false, isCode = false) {
     const msg = document.createElement('div');
